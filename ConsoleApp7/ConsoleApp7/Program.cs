@@ -1,61 +1,70 @@
 ﻿using System;
-using System.Collections.Generic;
 
 class Program
 {
     static void Main()
     {
         // Пример входных данных
-        string[] startTimes = { "09:00", "11:30", "14:00" }; // Начало занятых промежутков
-        int[] durations = { 30, 60, 30 }; // Длительность занятых промежутков в минутах
+        string[] startTimes = { "10:00", "11:00", "15:00", "16:40" }; // Начало занятых промежутков
+        int[] durations = { 60, 30, 10, 50 }; // Длительность занятых промежутков в минутах
         int consultationTime = 30; // Минимальное необходимое время для работы менеджера в минутах
-        string beginWorkingTime = "09:00"; 
-        string endWorkingTime = "17:00"; 
+        string beginWorkingTime = "08:00"; // Начало рабочего дня
+        string endWorkingTime = "18:00"; // Конец рабочего дня
 
-        List<string> availableSlots = GetAvailableTimeSlots(startTimes, durations, consultationTime, beginWorkingTime, endWorkingTime);
+        string[] availableSlots = GetAvailableTimeSlots(startTimes, durations, consultationTime, beginWorkingTime, endWorkingTime);
 
+        // Вывод результатов
         Console.WriteLine("Свободные временные интервалы:");
         foreach (var slot in availableSlots)
         {
-            Console.WriteLine(slot);
+            if (slot != null)
+                Console.WriteLine(slot);
         }
     }
 
-    static List<string> GetAvailableTimeSlots(string[] startTimes, int[] durations, int consultationTime, string beginWorkingTime, string endWorkingTime)
+    static string[] GetAvailableTimeSlots(string[] startTimes, int[] durations, int consultationTime, string beginWorkingTime, string endWorkingTime)
     {
-        // Преобразование начала и конца рабочего дня в минуты
         int workingStart = ConvertTimeToMinutes(beginWorkingTime);
         int workingEnd = ConvertTimeToMinutes(endWorkingTime);
 
-        // Формируем список занятых временных интервалов в виде пар (начало, конец)
-        List<(int Start, int End)> busyIntervals = new List<(int Start, int End)>();
-        for (int i = 0; i < startTimes.Length; i++)
+        // Создаем одномерный массив для начала и конца каждого интервала
+        int n = startTimes.Length;
+        int[][] busyIntervals = new int[n][];
+        for (int i = 0; i < n; i++)
         {
             int start = ConvertTimeToMinutes(startTimes[i]);
             int end = start + durations[i];
-            busyIntervals.Add((start, end));
+            busyIntervals[i] = new int[] { start, end };
         }
 
-        // Сортируем занятые интервалы по времени начала
-        busyIntervals.Sort((x, y) => x.Start.CompareTo(y.Start));
+        // Сортируем массив занятых интервалов по началу
+        Array.Sort(busyIntervals, (a, b) => a[0].CompareTo(b[0]));
 
-        List<string> availableSlots = new List<string>();
+        // Создаем массив для хранения возможных свободных интервалов с шагом 30 минут
+        string[] availableSlots = new string[100]; // массив большого размера для хранения всех возможных интервалов
+        int slotIndex = 0;
         int lastEndTime = workingStart;
 
-        // Проверяем интервалы между занятыми временными промежутками
-        foreach (var interval in busyIntervals)
+        // Проверяем интервалы между занятыми промежутками
+        for (int i = 0; i < n; i++)
         {
-            if (interval.Start - lastEndTime >= consultationTime)
+            int intervalStart = busyIntervals[i][0];
+
+            // Находим все свободные 30-минутные интервалы
+            while (lastEndTime + 30 <= intervalStart)
             {
-                availableSlots.Add($"{ConvertMinutesToTime(lastEndTime)}-{ConvertMinutesToTime(interval.Start)}");
+                availableSlots[slotIndex++] = $"{ConvertMinutesToTime(lastEndTime)}-{ConvertMinutesToTime(lastEndTime + 30)}";
+                lastEndTime += 30;
             }
-            lastEndTime = Math.Max(lastEndTime, interval.End);
+
+            lastEndTime = Math.Max(lastEndTime, busyIntervals[i][1]);
         }
 
-        // Проверяем интервал после последнего занятого промежутка до конца рабочего дня
-        if (workingEnd - lastEndTime >= consultationTime)
+        // Проверяем интервал между концом последнего занятого времени и концом рабочего дня
+        while (lastEndTime + 30 <= workingEnd)
         {
-            availableSlots.Add($"{ConvertMinutesToTime(lastEndTime)}-{ConvertMinutesToTime(workingEnd)}");
+            availableSlots[slotIndex++] = $"{ConvertMinutesToTime(lastEndTime)}-{ConvertMinutesToTime(lastEndTime + 30)}";
+            lastEndTime += 30;
         }
 
         return availableSlots;
